@@ -1,6 +1,6 @@
 /**
  * Reads Claude Code session JSONL files to determine agent activity.
- * Works for both MAMH (subagents in registry) and non-MAMH (Task tool subagents).
+ * Works for both Takt (subagents in registry) and non-Takt (Task tool subagents).
  *
  * Session structure:
  *   ~/.claude/projects/<encoded-project-path>/
@@ -21,7 +21,7 @@ export type SessionActivity = 'working' | 'completed' | 'idle'
 
 export interface AgentSession {
   readonly agentId: string
-  /** The agent name from the prompt (e.g. "mamh-eval-engineer"), distinct from agentId hash. */
+  /** The agent name from the prompt (e.g. "takt-eval-engineer"), distinct from agentId hash. */
   readonly agentName: string | null
   readonly sessionFile: string
   readonly lastModified: Date
@@ -97,7 +97,7 @@ async function readFirstMessage(filePath: string): Promise<{
             : Array.isArray(content) && content[0]?.text
               ? content[0].text
               : ''
-          // Match "You are mamh-data-engineer, ..." or "You are **mamh-data-engineer**, ..."
+          // Match "You are takt-data-engineer, ..." or "You are **takt-data-engineer**, ..."
           const nameMatch = text.match(/You are \*{0,2}([\w-]+)\*{0,2},\s*(?:an?\s+)?(.+?)(?:\s+agent|\s+for|\s+specializ)/i)
           if (nameMatch) {
             if (!result.agentName) result.agentName = nameMatch[1]

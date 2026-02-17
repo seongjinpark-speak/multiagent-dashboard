@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { MamhAdapter } from '../../adapters/mamh'
+import { TaktAdapter } from '../../adapters/takt'
 import fs from 'fs/promises'
 import path from 'path'
 
@@ -17,28 +17,28 @@ vi.mock('../../claude-stats', () => ({
 const mockFs = vi.mocked(fs)
 
 const PROJECT_DIR = '/test/project'
-const MAMH_DIR = path.join(PROJECT_DIR, '.mamh')
+const TAKT_DIR = path.join(PROJECT_DIR, '.takt')
 const CLAUDE_HOME = '/home/.claude'
 
 beforeEach(() => {
   vi.clearAllMocks()
 })
 
-describe('MamhAdapter', () => {
-  const adapter = new MamhAdapter(PROJECT_DIR, CLAUDE_HOME)
+describe('TaktAdapter', () => {
+  const adapter = new TaktAdapter(PROJECT_DIR, CLAUDE_HOME)
 
   describe('getWatchPaths', () => {
     it('returns expected watch paths', () => {
       const paths = adapter.getWatchPaths()
-      expect(paths).toContain(path.join(MAMH_DIR, 'state', 'mamh-state.json'))
-      expect(paths).toContain(path.join(MAMH_DIR, 'agents', 'registry.json'))
-      expect(paths).toContain(path.join(MAMH_DIR, 'session.json'))
+      expect(paths).toContain(path.join(TAKT_DIR, 'state', 'takt-state.json'))
+      expect(paths).toContain(path.join(TAKT_DIR, 'agents', 'registry.json'))
+      expect(paths).toContain(path.join(TAKT_DIR, 'session.json'))
     })
   })
 
   describe('readState with array registry format', () => {
     it('normalizes agents from array format', async () => {
-      // .mamh dir exists
+      // .takt dir exists
       mockFs.access.mockResolvedValue(undefined)
 
       // session.json
@@ -60,7 +60,7 @@ describe('MamhAdapter', () => {
             totalAgents: 2,
           })
         }
-        if (p.endsWith('mamh-state.json')) {
+        if (p.endsWith('takt-state.json')) {
           return JSON.stringify({
             phase: 3,
             status: 'executing',
@@ -107,7 +107,7 @@ describe('MamhAdapter', () => {
             version: 1,
           })
         }
-        if (p.endsWith('mamh-state.json')) {
+        if (p.endsWith('takt-state.json')) {
           return JSON.stringify({
             phase: 'executing',
             currentMilestone: 'M2',
@@ -133,13 +133,13 @@ describe('MamhAdapter', () => {
     })
   })
 
-  describe('readState with no .mamh dir', () => {
+  describe('readState with no .takt dir', () => {
     it('returns error state', async () => {
       mockFs.access.mockRejectedValue(new Error('ENOENT'))
 
       const state = await adapter.readState()
 
-      expect(state.error).toBe('No .mamh directory found')
+      expect(state.error).toBe('No .takt directory found')
       expect(state.agents).toHaveLength(0)
     })
   })

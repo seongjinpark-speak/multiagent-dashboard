@@ -2,8 +2,8 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'MAMH Dashboard',
-  description: 'Multi-Agent Multi-Harness real-time monitoring dashboard',
+  title: 'Takt Dashboard',
+  description: 'Takt multi-agent real-time monitoring dashboard',
 }
 
 export default function RootLayout({

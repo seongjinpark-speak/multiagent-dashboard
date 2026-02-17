@@ -1,4 +1,4 @@
-import { MamhAdapter } from '@/lib/adapters/mamh'
+import { TaktAdapter } from '@/lib/adapters/takt'
 import { ClaudeCodeAdapter } from '@/lib/adapters/claude-code'
 import type { DashboardAdapter } from '@/lib/adapters/types'
 import { getFileWatcher } from '@/lib/watcher'
@@ -9,13 +9,13 @@ import fs from 'fs'
 import path from 'path'
 
 function getAdapter(): DashboardAdapter {
-  const projectDir = process.env.MAMH_PROJECT_DIR ?? process.cwd()
+  const projectDir = process.env.TAKT_PROJECT_DIR ?? process.cwd()
   const claudeHome = process.env.CLAUDE_HOME ?? `${process.env.HOME}/.claude`
 
-  // Auto-detect: use MAMH adapter if .mamh/ directory exists, otherwise Claude Code adapter
-  const mamhDir = path.join(projectDir, '.mamh')
-  if (fs.existsSync(mamhDir)) {
-    return new MamhAdapter(projectDir, claudeHome)
+  // Auto-detect: use Takt adapter if .takt/ directory exists, otherwise Claude Code adapter
+  const taktDir = path.join(projectDir, '.takt')
+  if (fs.existsSync(taktDir)) {
+    return new TaktAdapter(projectDir, claudeHome)
   }
 
   return new ClaudeCodeAdapter(projectDir, claudeHome)

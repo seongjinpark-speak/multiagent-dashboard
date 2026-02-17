@@ -1,6 +1,6 @@
 # Multi-agent Dashboard
 
-The goal of this project is to create a dashboard for mamh plugin (~/research/multi-agent-multi-harness) where we can monitor the activity of agent teams. I think the key idea is
+The goal of this project is to create a dashboard for Takt plugin (https://github.com/byseon/Takt) where we can monitor the activity of agent teams. I think the key idea is
 
 1. Which agents have been called and what are the status (working, completed, rest) with the session id (maybe clickable).
 2. activity log tab that shows which agent is doing what (which ticket). 

@@ -1,11 +1,11 @@
 # Multi-Agent Dashboard
 
-> **tl;dr** — Real-time monitoring dashboard for AI agent teams. Point it at a Claude Code project and watch a pixel-art "Agent Village" where characters walk between Working/Idle/Done zones as agents run. Includes ticket tracking, token usage monitoring, and a live activity log. Works with both [MAMH](https://github.com/anthropics/claude-code) multi-agent orchestration and standalone Claude Code sessions.
+> **tl;dr** — Real-time monitoring dashboard for AI agent teams. Point it at a Claude Code project and watch a pixel-art "Agent Village" where characters walk between Working/Idle/Done zones as agents run. Includes ticket tracking, token usage monitoring, and a live activity log. Works with both [Takt](https://github.com/byseon/Takt) multi-agent orchestration and standalone Claude Code sessions.
 
 ## How It Works
 
 ```
-Session JSONL files (Claude Code / MAMH)
+Session JSONL files (Claude Code / Takt)
   -> chokidar file watcher (100ms debounce + 15s re-eval)
   -> DashboardAdapter.readState() -> DashboardState
   -> SSE stream (/api/events)
@@ -21,7 +21,7 @@ Agent status is derived from session file modification times: actively writing =
 - **Ticket Tracker** — milestone progress bars with click-to-expand ticket details. Tracks which agent is working on what.
 - **Monitor Panel** — task counts (Working / Waiting / Completed), Claude Max daily/weekly token usage bars with threshold markers, context window gauge with color zones.
 - **Activity Log** — timestamped event feed with role tags, type icons, per-agent filtering, and smart auto-scroll. Shows current task and last tool call for each agent.
-- **Dual adapter support** — auto-detects MAMH projects (reads `.mamh/` state files) vs plain Claude Code (reads `~/.claude/` session data).
+- **Dual adapter support** — auto-detects Takt projects (reads `.takt/` state files) vs plain Claude Code (reads `~/.claude/` session data).
 - **Real-time updates** — file system watching via chokidar, SSE streaming to browser, 15s periodic re-evaluation for time-based status transitions, 30s auto-refresh fallback.
 
 ## Quick Start
@@ -33,7 +33,7 @@ npm install
 USE_MOCK_DATA=true npm run dev
 
 # Option 2: Monitor a real project
-cp .env.local.example .env.local   # edit MAMH_PROJECT_DIR
+cp .env.local.example .env.local   # edit TAKT_PROJECT_DIR
 npm run dev
 ```
 
@@ -45,9 +45,9 @@ Create `.env.local` in the project root:
 
 ```bash
 # Project directory to monitor.
-# If it contains .mamh/, the MAMH adapter is used.
+# If it contains .takt/, the Takt adapter is used.
 # Otherwise, the Claude Code adapter reads session data from CLAUDE_HOME.
-MAMH_PROJECT_DIR=/path/to/your/project
+TAKT_PROJECT_DIR=/path/to/your/project
 
 # Claude home directory (default: ~/.claude)
 CLAUDE_HOME=~/.claude
@@ -60,15 +60,15 @@ USE_MOCK_DATA=false
 
 | Condition | Adapter | Data sources |
 |-----------|---------|-------------|
-| `MAMH_PROJECT_DIR/.mamh/` exists | `MamhAdapter` | registry.json, mamh-state.json, tickets/\*.md, comms/\*, session JSONL, stats-cache.json |
-| No `.mamh/` directory | `ClaudeCodeAdapter` | ~/.claude/projects/\*/\*.jsonl, stats-cache.json |
+| `TAKT_PROJECT_DIR/.takt/` exists | `TaktAdapter` | registry.json, takt-state.json, tickets/\*.md, comms/\*, session JSONL, stats-cache.json |
+| No `.takt/` directory | `ClaudeCodeAdapter` | ~/.claude/projects/\*/\*.jsonl, stats-cache.json |
 
 ### Agent status lifecycle
 
 | Elapsed since last write | Status | Village zone |
 |--------------------------|--------|-------------|
 | < 2 minutes | `working` | Working (tools animation) |
-| 2–5 minutes | `completed` | Done (sparkles) |
+| 2-5 minutes | `completed` | Done (sparkles) |
 | > 5 minutes | `idle` | Idle (Zzz) |
 
 ## UI Layout
@@ -136,7 +136,7 @@ src/
   lib/
     adapters/
       types.ts              # DashboardAdapter interface
-      mamh.ts               # MAMH adapter
+      takt.ts               # Takt adapter
       claude-code.ts        # Claude Code adapter
     session-reader.ts       # Reads Claude JSONL for agent activity
     claude-stats.ts         # Reads stats-cache.json for token usage
@@ -164,28 +164,28 @@ interface DashboardAdapter {
 }
 ```
 
-Two implementations exist: `MamhAdapter` for MAMH-orchestrated projects and `ClaudeCodeAdapter` for standalone Claude Code sessions. Adding a new data source means implementing this interface and updating the auto-detection logic in the SSE route.
+Two implementations exist: `TaktAdapter` for Takt-orchestrated projects and `ClaudeCodeAdapter` for standalone Claude Code sessions. Adding a new data source means implementing this interface and updating the auto-detection logic in the SSE route.
 
 ### Session reader
 
 Reads Claude Code session JSONL files for real-time agent activity:
 - **Location**: `~/.claude/projects/<encoded-project-path>/<session-id>.jsonl` (main) + `<session-id>/subagents/agent-*.jsonl` (subagents)
-- **Agent name extraction**: Parses `"You are **mamh-data-engineer**, ..."` from first user message
+- **Agent name extraction**: Parses `"You are **takt-data-engineer**, ..."` from first user message
 - **Task extraction**: Reads `## Ticket M4-T02: ...` from prompt
 - **Last action**: Reads last 16KB of active files for most recent tool_use call
 
-### MAMH data formats
+### Takt data formats
 
-The MAMH adapter handles two registry formats:
+The Takt adapter handles two registry formats:
 
 **Array format:**
 ```json
-{ "agents": [{ "id": "mamh-data-engineer", "role": "...", "modelTier": "sonnet" }] }
+{ "agents": [{ "id": "takt-data-engineer", "role": "...", "modelTier": "sonnet" }] }
 ```
 
 **Object format:**
 ```json
-{ "agents": { "mamh-ml-scientist": { "role": "...", "model": "opus" } } }
+{ "agents": { "takt-ml-scientist": { "role": "...", "model": "opus" } } }
 ```
 
 Both are normalized to a unified `Agent[]` via zod schema validation.

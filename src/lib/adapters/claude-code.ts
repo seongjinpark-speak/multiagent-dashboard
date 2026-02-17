@@ -6,7 +6,7 @@ import { readSessionSnapshot } from '@/lib/session-reader'
 import { AGENT_COLORS } from '@/lib/constants'
 
 /**
- * Adapter for regular Claude Code sessions (no MAMH).
+ * Adapter for regular Claude Code sessions (no Takt).
  * Reads session JSONL files for main + subagent activity.
  * Derives agent status from file modification times.
  */
@@ -63,7 +63,7 @@ export class ClaudeCodeAdapter implements DashboardAdapter {
       }
 
       // Subagents from session subagents directory.
-      // Without a registry (non-MAMH), only show recent subagents to avoid
+      // Without a registry (non-Takt), only show recent subagents to avoid
       // filling the village with idle ghosts from old Task calls.
       const STALE_CUTOFF_MS = 60 * 60 * 1000 // 1 hour
       const recentSubagents = sessionSnap.subagents.filter(s =>

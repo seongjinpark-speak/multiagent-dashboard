@@ -19,7 +19,7 @@ import { AGENT_COLORS } from '@/lib/constants'
 import { readClaudeStats } from '@/lib/claude-stats'
 import { readSessionSnapshot, type SessionSnapshot } from '@/lib/session-reader'
 
-// --- Zod schemas for MAMH JSON files ---
+// --- Zod schemas for Takt JSON files ---
 
 const ArrayRegistryAgentSchema = z.object({
   id: z.string(),
@@ -111,7 +111,7 @@ function parseTicketStatus(raw: string): TicketStatus {
   return mapping[normalized] ?? 'pending'
 }
 
-interface MamhStateResult {
+interface TaktStateResult {
   readonly phase: string
   readonly status: string
   readonly currentMilestone: string | null
@@ -176,45 +176,45 @@ async function fileExists(filePath: string): Promise<boolean> {
   }
 }
 
-// --- MAMH Adapter ---
+// --- Takt Adapter ---
 
-export class MamhAdapter implements DashboardAdapter {
-  readonly name = 'mamh'
+export class TaktAdapter implements DashboardAdapter {
+  readonly name = 'takt'
   private readonly projectDir: string
-  private readonly mamhDir: string
+  private readonly taktDir: string
   private readonly claudeHome: string
 
   constructor(projectDir: string, claudeHome: string) {
     this.projectDir = projectDir
-    this.mamhDir = path.join(projectDir, '.mamh')
+    this.taktDir = path.join(projectDir, '.takt')
     this.claudeHome = claudeHome
   }
 
   getWatchPaths(): readonly string[] {
     return [
-      path.join(this.mamhDir, 'state', 'mamh-state.json'),
-      path.join(this.mamhDir, 'agents', 'registry.json'),
-      path.join(this.mamhDir, 'session.json'),
-      path.join(this.mamhDir, 'tickets', '**', '*.md'),
-      path.join(this.mamhDir, 'comms', '**'),
-      path.join(this.mamhDir, 'reviews', '**'),
+      path.join(this.taktDir, 'state', 'takt-state.json'),
+      path.join(this.taktDir, 'agents', 'registry.json'),
+      path.join(this.taktDir, 'session.json'),
+      path.join(this.taktDir, 'tickets', '**', '*.md'),
+      path.join(this.taktDir, 'comms', '**'),
+      path.join(this.taktDir, 'reviews', '**'),
       path.join(this.claudeHome, 'stats-cache.json'),
     ]
   }
 
   async readState(): Promise<DashboardState> {
-    const exists = await fileExists(this.mamhDir)
+    const exists = await fileExists(this.taktDir)
     if (!exists) {
-      return createEmptyState('No .mamh directory found')
+      return createEmptyState('No .takt directory found')
     }
 
     try {
-      const [agents, rawTickets, session, mamhState, resources, activity, messages, sessionSnap] =
+      const [agents, rawTickets, session, taktState, resources, activity, messages, sessionSnap] =
         await Promise.all([
           this.readAgents(),
           this.readTickets(),
           this.readSession(),
-          this.readMamhState(),
+          this.readTaktState(),
           readClaudeStats(this.claudeHome),
           this.readActivity(),
           this.readMessages(),
@@ -222,14 +222,14 @@ export class MamhAdapter implements DashboardAdapter {
         ])
 
       // Override ticket statuses using milestone completion data
-      const milestoneCompletions = mamhState?.milestoneCompletions ?? {}
+      const milestoneCompletions = taktState?.milestoneCompletions ?? {}
       const tickets = applyMilestoneCompletions(rawTickets, milestoneCompletions)
 
       // Derive agent status from session activity (JSONL file times), with ticket fallback
       const agentsWithStatus = deriveAgentStatusesFromSession(agents, tickets, sessionSnap)
 
       // Add lead/orchestrator agent
-      const leadAgent = buildLeadAgent(mamhState, agentsWithStatus, sessionSnap)
+      const leadAgent = buildLeadAgent(taktState, agentsWithStatus, sessionSnap)
       const allAgents = [leadAgent, ...agentsWithStatus]
 
       // Add lead + subagent session-based activity events
@@ -237,7 +237,7 @@ export class MamhAdapter implements DashboardAdapter {
       const allActivity = [...activity, ...sessionActivity]
       allActivity.sort((a, b) => a.timestamp.localeCompare(b.timestamp))
 
-      const project = buildProjectState(session, mamhState, allAgents)
+      const project = buildProjectState(session, taktState, allAgents)
 
       return {
         agents: allAgents,
@@ -249,13 +249,13 @@ export class MamhAdapter implements DashboardAdapter {
         error: null,
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown error reading MAMH state'
+      const message = error instanceof Error ? error.message : 'Unknown error reading Takt state'
       return createEmptyState(message)
     }
   }
 
   private async readAgents(): Promise<Agent[]> {
-    const registryPath = path.join(this.mamhDir, 'agents', 'registry.json')
+    const registryPath = path.join(this.taktDir, 'agents', 'registry.json')
     const raw = await readFileSafe(registryPath)
     if (!raw) return []
 
@@ -297,7 +297,7 @@ export class MamhAdapter implements DashboardAdapter {
   }
 
   private async readTickets(): Promise<Ticket[]> {
-    const ticketsDir = path.join(this.mamhDir, 'tickets')
+    const ticketsDir = path.join(this.taktDir, 'tickets')
     const tickets: Ticket[] = []
 
     try {
@@ -367,13 +367,13 @@ export class MamhAdapter implements DashboardAdapter {
 
   private async readSession(): Promise<z.infer<typeof SessionSchema> | null> {
     return readJsonSafe(
-      path.join(this.mamhDir, 'session.json'),
+      path.join(this.taktDir, 'session.json'),
       SessionSchema,
     )
   }
 
-  private async readMamhState(): Promise<MamhStateResult | null> {
-    const statePath = path.join(this.mamhDir, 'state', 'mamh-state.json')
+  private async readTaktState(): Promise<TaktStateResult | null> {
+    const statePath = path.join(this.taktDir, 'state', 'takt-state.json')
     const raw = await readFileSafe(statePath)
     if (!raw) return null
 
@@ -435,7 +435,7 @@ export class MamhAdapter implements DashboardAdapter {
 
     // Read ticket output files from comms (M2-T01-output.md, etc.)
     // Use file modification time as the authoritative timestamp (not content fields).
-    const commsDir = path.join(this.mamhDir, 'comms')
+    const commsDir = path.join(this.taktDir, 'comms')
     const commsFiles = await fs.readdir(commsDir).catch(() => [] as string[])
     for (const file of commsFiles) {
       if (!file.match(/^M\d+-T\d+-output\.md$/)) continue
@@ -496,7 +496,7 @@ export class MamhAdapter implements DashboardAdapter {
     }
 
     // Read milestone completions from state
-    const statePath = path.join(this.mamhDir, 'state', 'mamh-state.json')
+    const statePath = path.join(this.taktDir, 'state', 'takt-state.json')
     const stateContent = await readFileSafe(statePath)
     if (stateContent) {
       try {
@@ -523,7 +523,7 @@ export class MamhAdapter implements DashboardAdapter {
   }
 
   private async readMessages(): Promise<Message[]> {
-    const commsDir = path.join(this.mamhDir, 'comms')
+    const commsDir = path.join(this.taktDir, 'comms')
     const messages: Message[] = []
     const files = await fs.readdir(commsDir).catch(() => [] as string[])
     if (files.length === 0) return []
@@ -598,7 +598,7 @@ function applyMilestoneCompletions(
  * Derive agent status primarily from Claude session activity (JSONL file mod times).
  * Falls back to ticket-based derivation if no session data exists.
  *
- * Matching strategy: MAMH registry uses names like "mamh-eval-engineer" while
+ * Matching strategy: Takt registry uses names like "takt-eval-engineer" while
  * session JSONL files use hash-based agentIds like "a1d8cc3". The session reader
  * also extracts agentName from the "You are X, ..." prompt. We match on agentName first.
  */
@@ -624,7 +624,6 @@ function deriveAgentStatusesFromSession(
     const inProgress = agentTickets.filter(t => t.status === 'in-progress')
     const completed = agentTickets.filter(t => t.status === 'completed')
 
-    // Match session: try agentName first (mamh-eval-engineer), then agentId (hash)
     const matchedSession = sessionByName.get(agent.id) ?? sessionById.get(agent.id)
 
     let status: AgentStatus
@@ -714,7 +713,7 @@ function buildSessionActivityEvents(
 }
 
 function buildLeadAgent(
-  mamhState: MamhStateResult | null,
+  taktState: TaktStateResult | null,
   subagents: Agent[],
   sessionSnap: SessionSnapshot,
 ): Agent {
@@ -725,12 +724,12 @@ function buildLeadAgent(
   if (mainActivity) {
     status = mainActivity
   } else {
-    // Fallback: derive from MAMH state + subagent statuses
-    const isExecuting = mamhState?.phase === 'executing' ||
-      mamhState?.status === 'executing'
+    // Fallback: derive from Takt state + subagent statuses
+    const isExecuting = taktState?.phase === 'executing' ||
+      taktState?.status === 'executing'
     const hasActiveSubagents = subagents.some(a => a.status === 'working')
-    const allDone = mamhState?.status === 'milestone-complete' ||
-      mamhState?.status === 'completed'
+    const allDone = taktState?.status === 'milestone-complete' ||
+      taktState?.status === 'completed'
 
     status = 'idle'
     if (isExecuting || hasActiveSubagents) status = 'working'
@@ -752,22 +751,22 @@ function buildLeadAgent(
 
 function buildProjectState(
   session: z.infer<typeof SessionSchema> | null,
-  mamhState: MamhStateResult | null,
+  taktState: TaktStateResult | null,
   agents: Agent[],
 ): ProjectState {
   const activeIds = agents.filter(a => a.status === 'working').map(a => a.id)
 
   return {
     name: session?.projectName ?? 'Unknown Project',
-    phase: mamhState?.phase ?? String(session?.currentPhase ?? 0),
-    status: mamhState?.status ?? 'unknown',
-    currentMilestone: mamhState?.currentMilestone ?? session?.currentMilestone ?? null,
+    phase: taktState?.phase ?? String(session?.currentPhase ?? 0),
+    status: taktState?.status ?? 'unknown',
+    currentMilestone: taktState?.currentMilestone ?? session?.currentMilestone ?? null,
     activeAgents: activeIds,
-    ticketsSummary: mamhState?.ticketsSummary ?? {
+    ticketsSummary: taktState?.ticketsSummary ?? {
       total: 0, completed: 0, inProgress: 0, pending: 0, blocked: 0, failed: 0,
     },
-    startedAt: mamhState?.startedAt ?? session?.startedAt ?? null,
-    lastUpdatedAt: mamhState?.lastUpdatedAt ?? null,
+    startedAt: taktState?.startedAt ?? session?.startedAt ?? null,
+    lastUpdatedAt: taktState?.lastUpdatedAt ?? null,
   }
 }
 

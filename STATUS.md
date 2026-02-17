@@ -8,7 +8,7 @@ Replaced JSON-only status derivation with real-time Claude session JSONL reading
 
 - **`src/lib/session-reader.ts`** (new) — Reads `~/.claude/projects/<encoded-path>/<session-id>.jsonl` and `<session-id>/subagents/agent-*.jsonl` to derive agent activity from file modification times.
 - **Status lifecycle**: `working` (< 2 min since last write) -> `completed` (2-5 min) -> `idle` (> 5 min)
-- **Agent name extraction**: Parses `"You are **mamh-data-engineer**, ..."` from the first user message in JSONL to match subagent session hashes to MAMH registry names.
+- **Agent name extraction**: Parses `"You are **takt-data-engineer**, ..."` from the first user message in JSONL to match subagent session hashes to Takt registry names.
 - **Task extraction**: Reads `## Ticket M4-T02: ...` from the prompt for currentTask.
 - **Last action**: Reads last 16KB of active session files to extract the most recent tool call (e.g., `Edit loaders/timit_loader.py`).
 
@@ -19,8 +19,8 @@ Replaced JSON-only status derivation with real-time Claude session JSONL reading
 
 ### Agent Name Matching Fix
 
-- **Root cause**: Session JSONL files use hash-based `agentId` (e.g., `a1d8cc3`) while MAMH registry uses full names (e.g., `mamh-eval-engineer`). Previous lookup always missed.
-- **Fix**: `session-reader.ts` now extracts `agentName` from the `"You are X, ..."` prompt. MAMH adapter matches on `agentName` first, falls back to `agentId` hash.
+- **Root cause**: Session JSONL files use hash-based `agentId` (e.g., `a1d8cc3`) while Takt registry uses full names (e.g., `takt-eval-engineer`). Previous lookup always missed.
+- **Fix**: `session-reader.ts` now extracts `agentName` from the `"You are X, ..."` prompt. Takt adapter matches on `agentName` first, falls back to `agentId` hash.
 - **Regex fix**: Updated pattern to handle markdown bold (`**name**`) and "specializing in" prompt variants.
 
 ### Activity Log Improvements
@@ -28,7 +28,7 @@ Replaced JSON-only status derivation with real-time Claude session JSONL reading
 - **File-based timestamps**: Comms output files now use `stat.mtime` instead of missing `Date` fields or `new Date()` fallback. Decisions use file mtime when header has date-only format.
 - **Date display**: `formatTimestamp` now shows `Feb 11 14:47:35` for non-today events, just `14:47:35` for today.
 - **Session activity events**: New `buildSessionActivityEvents()` generates rich activity entries from session data, including lead orchestrator status and subagent task/action details.
-- **Role tags**: Activity events show `[data-eng][mamh-data-engineer]` with short role prefix in blue.
+- **Role tags**: Activity events show `[data-eng][takt-data-engineer]` with short role prefix in blue.
 
 ### 2x2 Grid Layout
 
@@ -45,7 +45,7 @@ Replaced JSON-only status derivation with real-time Claude session JSONL reading
 ### Ticket Tracker
 
 - **`src/components/tickets/ticket-tracker.tsx`** (new) — Click-to-expand milestone/ticket detail views with [Home] navigation.
-- Milestone completion cross-referencing from `mamh-state.json` `milestoneCompletions` field.
+- Milestone completion cross-referencing from `takt-state.json` `milestoneCompletions` field.
 - Fixed ticket filename parsing for `M2-T01.md` patterns and `M1.json` inline milestone files.
 
 ### Claude Stats Fix
@@ -62,7 +62,7 @@ Replaced JSON-only status derivation with real-time Claude session JSONL reading
 |------|--------|
 | `src/lib/session-reader.ts` | New — session JSONL reader with agentName, currentTask, lastAction |
 | `src/lib/watcher.ts` | Added periodic re-evaluation timer + status diffing |
-| `src/lib/adapters/mamh.ts` | Session-based status, agentName matching, milestone completions, activity enrichment |
+| `src/lib/adapters/takt.ts` | Session-based status, agentName matching, milestone completions, activity enrichment |
 | `src/lib/adapters/claude-code.ts` | Rewritten to use session reader, rich activity summaries |
 | `src/lib/claude-stats.ts` | Stale data fallback |
 | `src/lib/format.ts` | Date-aware timestamp formatting |
@@ -79,5 +79,5 @@ Replaced JSON-only status derivation with real-time Claude session JSONL reading
 ### Known Limitations
 
 - Compact session files (`agent-acompact-*.jsonl`) lose the original prompt, so `agentName` is null. These fall back to ticket-based status.
-- Some MAMH registry names may differ from session prompt names if the registry was updated (e.g., `mamh-eval-engineer` in session vs `mamh-eval-scientist` in registry).
-- Milestone completion timestamps from `mamh-state.json` use midnight UTC values — no time-of-day precision.
+- Some Takt registry names may differ from session prompt names if the registry was updated (e.g., `takt-eval-engineer` in session vs `takt-eval-scientist` in registry).
+- Milestone completion timestamps from `takt-state.json` use midnight UTC values — no time-of-day precision.

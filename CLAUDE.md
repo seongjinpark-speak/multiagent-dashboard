@@ -21,7 +21,7 @@ npx tsc --noEmit     # Type check
 ### Data flow
 
 ```
-File system (.mamh/ or ~/.claude/)
+File system (.takt/ or ~/.claude/)
   -> chokidar (FileWatcher, 100ms debounce + 15s periodic re-eval)
   -> DashboardAdapter.readState() -> DashboardState
   -> SSE stream (/api/events, 15s heartbeat)
@@ -42,17 +42,17 @@ interface DashboardAdapter {
 ```
 
 Two implementations:
-- **MamhAdapter** (`src/lib/adapters/mamh.ts`) — reads `.mamh/` directory (registry, state, tickets, comms) + session JSONL files for real-time status
+- **TaktAdapter** (`src/lib/adapters/takt.ts`) — reads `.takt/` directory (registry, state, tickets, comms) + session JSONL files for real-time status
 - **ClaudeCodeAdapter** (`src/lib/adapters/claude-code.ts`) — reads `~/.claude/` session JSONL files
 
-Auto-detection in `src/app/api/events/route.ts`: if `MAMH_PROJECT_DIR/.mamh/` exists, use MAMH adapter; otherwise Claude Code adapter.
+Auto-detection in `src/app/api/events/route.ts`: if `TAKT_PROJECT_DIR/.takt/` exists, use Takt adapter; otherwise Claude Code adapter.
 
 ### Session reader (`src/lib/session-reader.ts`)
 
 Reads Claude Code session JSONL files for real-time agent activity:
 - **Location**: `~/.claude/projects/<encoded-project-path>/<session-id>.jsonl` (main) + `<session-id>/subagents/agent-*.jsonl` (subagents)
 - **Status derivation**: File modification time — `<2min` = working, `2-5min` = completed, `>5min` = idle
-- **Agent name extraction**: Parses `"You are **mamh-data-engineer**, ..."` from first user message (handles both plain and markdown bold)
+- **Agent name extraction**: Parses `"You are **takt-data-engineer**, ..."` from first user message (handles both plain and markdown bold)
 - **Task extraction**: Reads `## Ticket M4-T02: ...` from prompt
 - **Last action**: Reads last 16KB of active files for most recent tool_use call
 
@@ -100,8 +100,8 @@ DashboardState
 |------|---------|
 | `src/types/index.ts` | All shared TypeScript interfaces |
 | `src/lib/session-reader.ts` | Reads Claude JSONL for agent activity, task, last action |
-| `src/lib/adapters/mamh.ts` | MAMH adapter — registry, tickets, comms, session matching |
-| `src/lib/adapters/claude-code.ts` | Claude Code adapter for non-MAMH sessions |
+| `src/lib/adapters/takt.ts` | Takt adapter — registry, tickets, comms, session matching |
+| `src/lib/adapters/claude-code.ts` | Claude Code adapter for non-Takt sessions |
 | `src/lib/adapters/types.ts` | `DashboardAdapter` interface |
 | `src/lib/watcher.ts` | Chokidar singleton + 15s periodic re-eval with status diffing |
 | `src/lib/claude-stats.ts` | Reads `~/.claude/stats-cache.json` for token usage |
@@ -121,15 +121,15 @@ DashboardState
 - **Immutability**: All types use `readonly` properties. State objects are never mutated.
 - **Adapter pattern**: Adding a new data source = implement `DashboardAdapter` interface.
 - **Server/client split**: Adapters, watcher, session-reader are server-only. Components are `'use client'`.
-- **Zod validation**: All JSON files from `.mamh/` are validated with zod schemas before use.
+- **Zod validation**: All JSON files from `.takt/` are validated with zod schemas before use.
 - **Canvas rendering**: All pixel art is programmatic (no external images). Zone-based renderer in `renderer.ts`.
 - **Error handling**: File reads use `readFileSafe()` and `.catch(() => [])` patterns — missing files never crash.
 - **Dark theme**: `bg-gray-950 text-gray-100` throughout. CSS vars in `globals.css`.
 - **Sticky headers**: All panels use `flex h-full flex-col` with `shrink-0` header and `flex-1 overflow-y-auto` body.
 
-## MAMH Agent Matching
+## Takt Agent Matching
 
-MAMH registry uses names like `mamh-data-engineer`. Session JSONL files use hash-based `agentId` like `a1d8cc3`. The session reader extracts `agentName` from the prompt ("You are **mamh-data-engineer**, ...") and the MAMH adapter matches on `agentName` first, then falls back to `agentId`.
+Takt registry uses names like `takt-data-engineer`. Session JSONL files use hash-based `agentId` like `a1d8cc3`. The session reader extracts `agentName` from the prompt ("You are **takt-data-engineer**, ...") and the Takt adapter matches on `agentName` first, then falls back to `agentId`.
 
 Compact session files (`agent-acompact-*.jsonl`) lose the original prompt, so `agentName` is null — these fall back to ticket-based status derivation.
 
@@ -138,7 +138,7 @@ Compact session files (`agent-acompact-*.jsonl`) lose the original prompt, so `a
 Tests live in `src/lib/__tests__/`. Run with `npm test`.
 
 - `format.test.ts` — token formatting, timestamps, session ID truncation
-- `adapters/mamh.test.ts` — both registry formats, missing `.mamh/` directory
+- `adapters/takt.test.ts` — both registry formats, missing `.takt/` directory
 
 Uses vitest with `vi.mock('fs/promises')` for file system mocking.
 
@@ -148,7 +148,7 @@ Set in `.env.local`:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `MAMH_PROJECT_DIR` | `process.cwd()` | Project directory to monitor |
+| `TAKT_PROJECT_DIR` | `process.cwd()` | Project directory to monitor |
 | `CLAUDE_HOME` | `~/.claude` | Claude home directory for stats |
 | `USE_MOCK_DATA` | `false` | Use mock data instead of real files |
 
